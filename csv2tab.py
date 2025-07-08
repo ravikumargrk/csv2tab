@@ -1,0 +1,88 @@
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+import shutil
+import textwrap
+from tabulate import tabulate
+
+MAX_COL_WIDTH = 40
+MIN_COL_WIDTH = 1
+
+def wrap_cell(text:str, width):
+    return "\n".join(
+        textwrap.wrap(
+            text, 
+            width=int(width),
+            replace_whitespace=False
+        )
+    ).strip() if text else ""
+
+def min_max(val):
+    return max(min(round(val,0), MAX_COL_WIDTH), MIN_COL_WIDTH)
+
+def get_width(cell:str):
+    max_ln_len = 0
+    for line in cell.splitlines():
+        max_ln_len = max(len(line), max_ln_len)
+    return max_ln_len
+
+def get_col_widths(rows):
+    n_cols = max([len(row) for row in rows])
+    col_widths = [MIN_COL_WIDTH for i in range(n_cols)]
+    for row in rows:
+        for idx, cell in enumerate(row):
+            col_widths[idx] = max(col_widths[idx], get_width(cell))
+    return col_widths
+
+def reduce_col_widths(col_widths, delta):
+    red_col_widths = [c for c in col_widths]
+    for i in range(delta):
+        # decrease the max column by 1
+        red_col_widths[red_col_widths.index(max(red_col_widths))] -= 1
+    return red_col_widths
+
+def print_csv_table(data:str):
+    # Get terminal size
+    term_width = shutil.get_terminal_size().columns # check cross compatibility works on windows
+
+    data = data.strip()
+
+    if not data:
+        print('<empty stream>')
+        exit(0)
+
+    rows = [[cell.replace('\\n', '\n') for cell in row.split(',')] for row in data.split('\n') if row.strip()]
+    
+    col_widths = get_col_widths(rows)
+
+    n_cols = len(col_widths)
+    available_width = term_width - (2*2 + (n_cols-1)*3) - 1
+        # 2 borders takes 2 pos each
+        # n columns have n-1 seperators taking 3 pos each
+        # when table size == term size, it adds line breaks for each line printed. so, -1
+    actual_width = sum(col_widths)
+
+    prop_widths = reduce_col_widths(col_widths=col_widths, delta=(actual_width - available_width))
+
+    # print(col_widths, sum(col_widths), available_width)
+    # print(prop_widths, sum(prop_widths), term_width)
+
+    if any(w < MIN_COL_WIDTH for w in prop_widths):
+        print('terminal size too small, zoom out!')
+        exit(0)
+
+    # Wrap each cell
+    wrapped_rows = [
+        [wrap_cell(cell, prop_widths[idx]) for idx, cell in enumerate(row)]
+        for row in rows
+    ]
+
+    # Print table
+    print(tabulate(wrapped_rows, tablefmt="grid"))
+
+# Usage
+if __name__ == "__main__":
+    data = sys.stdin.read()
+    
+    print_csv_table(data)
