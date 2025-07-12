@@ -6,7 +6,6 @@ import shutil
 import textwrap
 from tabulate import tabulate
 
-MAX_COL_WIDTH = 40
 MIN_COL_WIDTH = 1
 
 def wrap_cell(text:str, width):
@@ -17,9 +16,6 @@ def wrap_cell(text:str, width):
             replace_whitespace=False
         )
     ).strip() if text else ""
-
-def min_max(val):
-    return max(min(round(val,0), MAX_COL_WIDTH), MIN_COL_WIDTH)
 
 def get_width(cell:str):
     max_ln_len = 0
@@ -42,7 +38,7 @@ def reduce_col_widths(col_widths, delta):
         red_col_widths[red_col_widths.index(max(red_col_widths))] -= 1
     return red_col_widths
 
-def print_csv_table(data:str):
+def preprocess_data(data:str):
     # Get terminal size
     term_width = shutil.get_terminal_size().columns # check cross compatibility works on windows
 
@@ -79,10 +75,11 @@ def print_csv_table(data:str):
     ]
 
     # Print table
-    print(tabulate(wrapped_rows, tablefmt="grid"))
+    # print(tabulate(wrapped_rows, tablefmt="grid"))
+    return wrapped_rows
 
 # Usage
 if __name__ == "__main__":
     data = sys.stdin.read()
-    
-    print_csv_table(data)
+    rows = preprocess_data(data)
+    print(tabulate(rows, tablefmt='grid'))
